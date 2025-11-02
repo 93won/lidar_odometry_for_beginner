@@ -135,14 +135,18 @@ class GaussNewtonSolver:
             # Calculate residual: r = n^T * (R*p + t - q)
             residual = np.dot(plane_normal, transformed_point - target_point)
             
-            # Calculate Jacobian: J = [n^T, n^T * [R*p]_×]
-            # Translation part: ∂r/∂t = n^T
-            jac_translation = plane_normal
+            # Calculate Jacobian for right multiplication: T' = T * exp(xi)
+            # Residual: r = n^T * (T * exp(xi) * p - q)
+            # where n is the plane normal in target frame, p is source point
             
-            # Rotation part: ∂r/∂ω = n^T * [R*p]_× (using right perturbation)
-            Rp = pose.rotation @ source_point
-            Rp_skew = skew_symmetric(Rp)
-            jac_rotation = -plane_normal.T @ Rp_skew  # Note the negative sign for right perturbation
+            # Translation part: ∂r/∂t = n^T * R
+            # (rotation is applied to the translation direction)
+            jac_translation = plane_normal.T @ pose.rotation
+            
+            # Rotation part: ∂r/∂ω = -n^T * R * [p]_×
+            # (negative sign for right perturbation with skew of original point)
+            p_skew = skew_symmetric(source_point)
+            jac_rotation = -plane_normal.T @ pose.rotation @ p_skew
             
             # Combine jacobians: J = [∂r/∂t, ∂r/∂ω]
             jacobian = np.concatenate([jac_translation, jac_rotation])
